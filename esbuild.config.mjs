@@ -1,6 +1,8 @@
 import esbuild from "esbuild";
 import process from "process";
 import { builtinModules } from 'node:module';
+import esbuildSvelte from 'esbuild-svelte';
+import { vitePreprocess } from "@sveltejs/vite-plugin-svelte"; // Modern alternative
 
 const banner =
 `/*
@@ -32,6 +34,12 @@ const context = await esbuild.context({
 		"@lezer/highlight",
 		"@lezer/lr",
 		...builtinModules],
+	plugins: [
+		esbuildSvelte({
+			compilerOptions: { css: "injected", runes: true },
+			preprocess: vitePreprocess(),
+		}),
+	],
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
