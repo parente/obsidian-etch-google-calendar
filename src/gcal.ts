@@ -2,12 +2,19 @@ import { calendar_v3, google, tasks_v1 } from "googleapis";
 import { OAuthServer, type OAuthCredentials } from "oauth";
 import { type Credentials } from "google-auth-library";
 
+// Values required for Google Calendar API access and token management
 export interface GoogleCalendarCredentials {
 	clientId: string;
 	clientSecret: string;
-	accessToken?: string;
-	refreshToken?: string;
+	accessToken: string;
+	refreshToken: string;
+	callbackUrl: string;
 }
+
+// Scopes required for Google Calendar API access
+export const GOOGLE_CALENDAR_SCOPES: string[] = [
+	"https://www.googleapis.com/auth/calendar.readonly",
+];
 
 export interface CalendarData {
 	events: calendar_v3.Schema$Events | null;
@@ -18,15 +25,13 @@ export class GoogleCalendarAPI {
 	private credentials: GoogleCalendarCredentials;
 	private calendar: calendar_v3.Calendar;
 	private tasks: tasks_v1.Tasks;
-	private oauthServer: OAuthServer;
-	private onTokensUpdated?: (tokens: Credentials) => void;
+	private onTokensUpdated?: (tokens: Credentials) => Promise<void>;
 
 	constructor(
 		credentials: GoogleCalendarCredentials,
-		onTokensUpdated?: (tokens: Credentials) => void
+		onTokensUpdated?: (tokens: Credentials) => Promise<void>
 	) {
 		this.credentials = credentials;
-		this.oauthServer = new OAuthServer();
 		this.onTokensUpdated = onTokensUpdated;
 		this.initializeAPI();
 	}
@@ -35,7 +40,7 @@ export class GoogleCalendarAPI {
 		const auth = new google.auth.OAuth2(
 			this.credentials.clientId,
 			this.credentials.clientSecret,
-			this.oauthServer.callbackUrl
+			this.credentials.callbackUrl
 		);
 
 		if (this.credentials.accessToken) {
@@ -53,7 +58,7 @@ export class GoogleCalendarAPI {
 					this.credentials.accessToken = tokens.access_token;
 				}
 				// Notify that tokens have been updated
-				this.onTokensUpdated?.(tokens);
+				void this.onTokensUpdated?.(tokens);
 			});
 		}
 
@@ -146,26 +151,10 @@ export class GoogleCalendarAPI {
 				tasks: tasks,
 			};
 		} catch (error) {
+			console.error("Error fetching tasks:", error);
 			return null;
 		}
 	}
 
-	async startOAuthFlow(): Promise<Credentials> {
-		try {
-			const oauthCredentials: OAuthCredentials = {
-				clientId: this.credentials.clientId,
-				clientSecret: this.credentials.clientSecret,
-			};
-
-			const tokens = await this.oauthServer.startOAuthFlow(oauthCredentials);
-			return tokens;
-		} catch (error) {
-			console.error("OAuth flow error:", error);
-			throw error;
-		}
-	}
-
-	cleanup(): void {
-		this.oauthServer.cleanup();
-	}
+	cleanup(): void {}
 }

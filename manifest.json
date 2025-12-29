@@ -1,11 +1,11 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "obsidian-etch",
+	"name": "Obsidian Etch",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Etches third-party data into your local notes",
+	"author": "Peter Parente",
+	"authorUrl": "https://github.com/parente",
+	"fundingUrl": "TODO",
 	"isDesktopOnly": false
 }

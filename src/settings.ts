@@ -1,24 +1,59 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import MyPlugin from "./main";
+import EtchPlugin from "./main";
 
-export interface MyPluginSettings {
+export interface EtchPluginSettings {
 	googleClientId: string;
 	googleClientSecret: string;
 	googleAccessToken?: string;
 	googleRefreshToken?: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: EtchPluginSettings = {
 	googleClientId: "",
 	googleClientSecret: "",
 };
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class EtchPluginSettingTab extends PluginSettingTab {
+	plugin: EtchPlugin;
+	authorizeSetting?: Setting;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: EtchPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
+	}
+
+	private refreshDisplay(): void {
+		// Reflect the current authorization state properly
+		this.authorizeSetting?.controlEl.empty();
+		if (this.plugin.settings.googleAccessToken) {
+			this.authorizeSetting
+				?.setName("Calendar access: Granted ✅")
+				.setDesc("Click to remove Obsidian's access to your Google Calendar")
+				.addButton((button) =>
+					button.setButtonText("Deauthorize").onClick(async () => {
+						delete this.plugin.settings.googleAccessToken;
+						delete this.plugin.settings.googleRefreshToken;
+						await this.plugin.saveSettings();
+						this.refreshDisplay();
+					})
+				);
+		} else {
+			this.authorizeSetting
+				?.setName("Calendar access: Pending")
+				.setDesc("Click to give Obsidian access to your Google Calendar")
+				.addButton((button) =>
+					button.setButtonText("Authorize").onClick(async () => {
+						await this.plugin.authorizeGoogleCalendarAccess();
+						this.refreshDisplay();
+					})
+				);
+		}
+
+		// Enable the authorize button only if required values are provided
+		this.authorizeSetting?.setDisabled(
+			!this.plugin.settings.googleAccessToken &&
+				(!this.plugin.settings.googleClientId || !this.plugin.settings.googleClientSecret)
+		);
 	}
 
 	display(): void {
@@ -26,44 +61,39 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl("h3", { text: "Google Calendar API" });
+		new Setting(containerEl).setName("Google Calendar").setHeading();
 
 		new Setting(containerEl)
 			.setName("Google client ID")
-			.setDesc("OAuth 2.0 client ID from Google Cloud console")
+			.setDesc("Enter an OAuth 2.0 client ID from the Google Cloud console")
 			.addText((text) =>
 				text
 					.setPlaceholder("e.g., XXXX....apps.googleusercontent.com")
 					.setValue(this.plugin.settings.googleClientId)
 					.onChange(async (value) => {
+						console.log(value);
 						this.plugin.settings.googleClientId = value;
 						await this.plugin.saveSettings();
+						this.refreshDisplay();
 					})
 			);
 
 		new Setting(containerEl)
 			.setName("Google client secret")
-			.setDesc("OAuth 2.0 client secret from Google Cloud Console")
-			.addText((text) =>
-				text
-					.setPlaceholder("e.g., GOXXXX-X_XXXXXXXXXXXXXXXXXXXXXX")
+			.setDesc("Enter an OAuth 2.0 client secret from the Google Cloud console")
+			.addText((text) => {
+				text.inputEl.type = "password";
+				text.setPlaceholder("e.g., GOXXXX-X_XXXXXXXXXXXXXXXXXXXXXX")
 					.setValue(this.plugin.settings.googleClientSecret)
 					.onChange(async (value) => {
 						this.plugin.settings.googleClientSecret = value;
 						await this.plugin.saveSettings();
-					})
-			);
+						this.refreshDisplay();
+					});
+			});
 
-		new Setting(containerEl)
-			.setName("Google authorization")
-			.setDesc("Click to authorize access to your Google Calendar")
-			.addButton((button) =>
-				button.setButtonText("Authorize Google Calendar").onClick(async () => {
-					await this.plugin.enableGoogleCalendarBlocks();
-				})
-			)
-			.setDisabled(
-				!this.plugin.settings.googleClientId || !this.plugin.settings.googleClientSecret
-			);
+		this.authorizeSetting = new Setting(containerEl);
+
+		this.refreshDisplay();
 	}
 }

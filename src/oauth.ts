@@ -11,19 +11,18 @@ export interface OAuthCredentials {
 export class OAuthServer {
 	private server?: http.Server;
 	private port: number;
+	private oauthFlowTimeoutSeconds: number;
 
-	constructor(port: number = 8080) {
+	constructor(port: number = 8080, oauthFlowTimeoutSeconds: number = 2 * 60 * 1000) {
 		this.port = port;
+		this.oauthFlowTimeoutSeconds = oauthFlowTimeoutSeconds;
 	}
 
 	get callbackUrl(): string {
 		return `http://localhost:${this.port}/callback`;
 	}
 
-	async startOAuthFlow(
-		credentials: OAuthCredentials,
-		scopes: Array<string>
-	): Promise<Credentials> {
+	async startOAuthFlow(credentials: OAuthCredentials, scopes: string[]): Promise<Credentials> {
 		return new Promise((resolve, reject) => {
 			this.server = this.createServer(credentials, resolve, reject);
 			this.startServer(credentials, scopes);
@@ -35,10 +34,15 @@ export class OAuthServer {
 		resolve: (tokens: Credentials) => void,
 		reject: (reason?: Error) => void
 	): http.Server {
+		setTimeout(() => {
+			this.closeServer();
+			reject(new Error("Authorization timed out"));
+		}, this.oauthFlowTimeoutSeconds);
+
 		return http.createServer((req, res) => {
-			req.url &&
-				url.parse(req.url, true).pathname === "/callback" &&
+			if (req.url && url.parse(req.url, true).pathname === "/callback") {
 				this.handleCallback(req, res, credentials, resolve, reject);
+			}
 		});
 	}
 
@@ -57,7 +61,7 @@ export class OAuthServer {
 		if (error) {
 			this.sendErrorResponse(res, `Authorization failed: ${error}`);
 			this.closeServer();
-			reject(new Error(`Authorization failed: ${error}`));
+			reject(new Error(error));
 			return;
 		}
 
@@ -99,7 +103,7 @@ export class OAuthServer {
 		`);
 	}
 
-	private startServer(credentials: OAuthCredentials, scopes: Array<string>): void {
+	private startServer(credentials: OAuthCredentials, scopes: string[]): void {
 		this.server?.listen(this.port, () => {
 			const authUrl = this.generateAuthUrl(credentials, scopes);
 			window.open(authUrl, "_blank");
@@ -119,7 +123,7 @@ export class OAuthServer {
 		);
 	}
 
-	private generateAuthUrl(credentials: OAuthCredentials, scopes: Array<string>): string {
+	private generateAuthUrl(credentials: OAuthCredentials, scopes: string[]): string {
 		const auth = this.createOAuth2Client(credentials);
 
 		return auth.generateAuthUrl({

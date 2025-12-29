@@ -1,13 +1,18 @@
 import { Notice, Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, type MyPluginSettings, SampleSettingTab } from "settings";
+import { DEFAULT_SETTINGS, type EtchPluginSettings, EtchPluginSettingTab } from "settings";
 import { type Credentials } from "google-auth-library";
-import { GoogleCalendarAPI, type GoogleCalendarCredentials } from "gcal";
+import { GOOGLE_CALENDAR_SCOPES, GoogleCalendarAPI, type GoogleCalendarCredentials } from "gcal";
+import { OAuthServer } from "oauth";
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class EtchPlugin extends Plugin {
+	settings: EtchPluginSettings;
+	oauthServer: OAuthServer;
 	googleCalendarAPI: GoogleCalendarAPI;
 
 	async onload() {
+		// Create a local server to handle OAuth flows
+		this.oauthServer = new OAuthServer();
+
 		// Load saved settings
 		await this.loadSettings();
 
@@ -16,7 +21,7 @@ export default class MyPlugin extends Plugin {
 		// this.registerMarkdownCodeBlockProcessor("block-svelte", createBlockSvelteProcessor());
 
 		// Add a settings disalog tab
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new EtchPluginSettingTab(this.app, this));
 		// // This creates an icon in the left ribbon.
 		// this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
 		// 	// Called when the user clicks the icon.
@@ -75,64 +80,70 @@ export default class MyPlugin extends Plugin {
 	}
 
 	onunload() {
-		if (this.googleCalendarAPI) {
-			this.googleCalendarAPI.cleanup();
-		}
+		this.googleCalendarAPI?.cleanup();
+		this.oauthServer?.cleanup();
 	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<MyPluginSettings>
+			(await this.loadData()) as Partial<EtchPluginSettings>
 		);
-		this.initializeGoogleCalendarAPI();
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
 
-	private initializeGoogleCalendarAPI() {
-		const credentials: GoogleCalendarCredentials = {
-			clientId: this.settings.googleClientId,
-			clientSecret: this.settings.googleClientSecret,
-			accessToken: this.settings.googleAccessToken,
-			refreshToken: this.settings.googleRefreshToken,
-		};
-
-		const onTokensUpdated = async (tokens: Credentials) => {
-			if (tokens.access_token) {
-				this.settings.googleAccessToken = tokens.access_token;
-			}
-			if (tokens.refresh_token) {
-				this.settings.googleRefreshToken = tokens.refresh_token;
-			}
-			await this.saveSettings();
-		};
-
-		this.googleCalendarAPI = new GoogleCalendarAPI(credentials, onTokensUpdated);
-	}
-
-	async enableGoogleCalendarBlocks() {
+	async authorizeGoogleCalendarAccess() {
 		if (!this.settings.googleClientId || !this.settings.googleClientSecret) {
-			new Notice("Enter both Google Client ID and Client Secret in the settings");
+			// TODO: handle case https://github.com/obsidianmd/eslint-plugin/blob/master/docs/rules/ui/sentence-case.md
+			new Notice("Both Google client ID and client secret are required.");
 			return;
 		}
 
 		try {
-			const tokens = await this.googleCalendarAPI.startOAuthFlow();
+			const tokens = await this.oauthServer.startOAuthFlow(
+				{
+					clientId: this.settings.googleClientId,
+					clientSecret: this.settings.googleClientSecret,
+				},
+				GOOGLE_CALENDAR_SCOPES
+			);
 			if (tokens.access_token && tokens.refresh_token) {
 				this.settings.googleAccessToken = tokens.access_token;
 				this.settings.googleRefreshToken = tokens.refresh_token || "";
+
 				await this.saveSettings();
-				this.initializeGoogleCalendarAPI();
+
+				const credentials: GoogleCalendarCredentials = {
+					clientId: this.settings.googleClientId,
+					clientSecret: this.settings.googleClientSecret,
+					accessToken: this.settings.googleAccessToken,
+					refreshToken: this.settings.googleRefreshToken,
+					callbackUrl: this.oauthServer.callbackUrl,
+				};
+
+				const onTokensUpdated = async (tokens: Credentials) => {
+					if (tokens.access_token) {
+						this.settings.googleAccessToken = tokens.access_token;
+					}
+					if (tokens.refresh_token) {
+						this.settings.googleRefreshToken = tokens.refresh_token;
+					}
+					await this.saveSettings();
+				};
+
+				this.googleCalendarAPI = new GoogleCalendarAPI(credentials, onTokensUpdated);
+
 				// this.registerMarkdownCodeBlockProcessor(
 				// 	"google-calendar",
 				// 	createCodeBlockProcessor(this.googleCalendarAPI)
 				// );
 			}
 		} catch (error) {
+			new Notice(`Authorization failed: ${error}`);
 			console.error("Error during OAuth flow:", error);
 		}
 	}
