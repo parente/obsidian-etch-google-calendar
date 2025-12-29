@@ -1,85 +1,22 @@
-import {
-	App,
-	MarkdownRenderChild,
-	MarkdownRenderer,
-	Plugin,
-	type MarkdownPostProcessorContext,
-} from "obsidian";
-import { DEFAULT_SETTINGS, type MyPluginSettings } from "./settings";
-import HelloWorld from "./ui/HelloWorld.svelte";
-import { mount, unmount } from "svelte";
-
-class SvelteCodeBlock extends MarkdownRenderChild {
-	private source: string;
-	private component: ReturnType<typeof mount> | undefined;
-
-	constructor(containerEl: HTMLElement, source: string) {
-		super(containerEl);
-		this.source = source;
-	}
-
-	onload() {
-		this.component = mount(HelloWorld, {
-			target: this.containerEl,
-			props: {
-				source: this.source,
-			},
-		});
-	}
-
-	onunload() {
-		console.debug("onunload => source: ", this.source);
-		if (this.component) {
-			void unmount(this.component);
-		}
-	}
-}
-
-class MarkdownCodeBlock extends MarkdownRenderChild {
-	private app: App;
-	private source: string;
-
-	constructor(containerEl: HTMLElement, source: string, app: App) {
-		super(containerEl);
-		this.source = source;
-		this.app = app;
-	}
-
-	onload() {
-		console.debug("onload => source: ", this.source, ", containerEl: ", this.containerEl);
-		void MarkdownRenderer.render(this.app, this.source, this.containerEl, "", this);
-	}
-
-	onunload() {
-		console.debug("onunload => source: ", this.source);
-	}
-}
-
-function createBlockMdProcessor(app: App) {
-	return (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-		const child = new MarkdownCodeBlock(el, source, app);
-		ctx.addChild(child);
-		console.debug("createBlockMdProcessor => ctx: ", ctx);
-	};
-}
-
-function createBlockSvelteProcessor() {
-	return (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-		const child = new SvelteCodeBlock(el, source);
-		ctx.addChild(child);
-		console.debug("createBlockSvelteProcessor => ctx: ", ctx);
-	};
-}
+import { Notice, Plugin } from "obsidian";
+import { DEFAULT_SETTINGS, type MyPluginSettings, SampleSettingTab } from "settings";
+import { type Credentials } from "google-auth-library";
+import { GoogleCalendarAPI, type GoogleCalendarCredentials } from "gcal";
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
+	googleCalendarAPI: GoogleCalendarAPI;
 
 	async onload() {
+		// Load saved settings
 		await this.loadSettings();
 
-		this.registerMarkdownCodeBlockProcessor("block-md", createBlockMdProcessor(this.app));
+		// this.registerMarkdownCodeBlockProcessor("block-md", createBlockMdProcessor(this.app));
 
-		this.registerMarkdownCodeBlockProcessor("block-svelte", createBlockSvelteProcessor());
+		// this.registerMarkdownCodeBlockProcessor("block-svelte", createBlockSvelteProcessor());
+
+		// Add a settings disalog tab
+		this.addSettingTab(new SampleSettingTab(this.app, this));
 		// // This creates an icon in the left ribbon.
 		// this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
 		// 	// Called when the user clicks the icon.
@@ -127,9 +64,6 @@ export default class MyPlugin extends Plugin {
 		// 	}
 		// });
 
-		// // This adds a settings tab so the user can configure various aspects of the plugin
-		// this.addSettingTab(new SampleSettingTab(this.app, this));
-
 		// // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
 		// // Using this function will automatically remove the event listener when this plugin is disabled.
 		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
@@ -140,7 +74,11 @@ export default class MyPlugin extends Plugin {
 		// this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 	}
 
-	onunload() {}
+	onunload() {
+		if (this.googleCalendarAPI) {
+			this.googleCalendarAPI.cleanup();
+		}
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -148,10 +86,55 @@ export default class MyPlugin extends Plugin {
 			DEFAULT_SETTINGS,
 			(await this.loadData()) as Partial<MyPluginSettings>
 		);
+		this.initializeGoogleCalendarAPI();
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
+	}
+
+	private initializeGoogleCalendarAPI() {
+		const credentials: GoogleCalendarCredentials = {
+			clientId: this.settings.googleClientId,
+			clientSecret: this.settings.googleClientSecret,
+			accessToken: this.settings.googleAccessToken,
+			refreshToken: this.settings.googleRefreshToken,
+		};
+
+		const onTokensUpdated = async (tokens: Credentials) => {
+			if (tokens.access_token) {
+				this.settings.googleAccessToken = tokens.access_token;
+			}
+			if (tokens.refresh_token) {
+				this.settings.googleRefreshToken = tokens.refresh_token;
+			}
+			await this.saveSettings();
+		};
+
+		this.googleCalendarAPI = new GoogleCalendarAPI(credentials, onTokensUpdated);
+	}
+
+	async enableGoogleCalendarBlocks() {
+		if (!this.settings.googleClientId || !this.settings.googleClientSecret) {
+			new Notice("Enter both Google Client ID and Client Secret in the settings");
+			return;
+		}
+
+		try {
+			const tokens = await this.googleCalendarAPI.startOAuthFlow();
+			if (tokens.access_token && tokens.refresh_token) {
+				this.settings.googleAccessToken = tokens.access_token;
+				this.settings.googleRefreshToken = tokens.refresh_token || "";
+				await this.saveSettings();
+				this.initializeGoogleCalendarAPI();
+				// this.registerMarkdownCodeBlockProcessor(
+				// 	"google-calendar",
+				// 	createCodeBlockProcessor(this.googleCalendarAPI)
+				// );
+			}
+		} catch (error) {
+			console.error("Error during OAuth flow:", error);
+		}
 	}
 }
 
