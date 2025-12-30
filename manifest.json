@@ -1,9 +1,9 @@
 {
-	"id": "obsidian-etch",
-	"name": "Obsidian Etch",
+	"id": "obsidian-etch-google-calendar",
+	"name": "Obsidian Etch - Google Calendar",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Etches third-party data into your local notes",
+	"description": "Etches Google Calendar events into your local notes",
 	"author": "Peter Parente",
 	"authorUrl": "https://github.com/parente",
 	"fundingUrl": "TODO",

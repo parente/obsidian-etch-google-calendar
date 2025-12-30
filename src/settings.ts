@@ -71,7 +71,6 @@ export class EtchPluginSettingTab extends PluginSettingTab {
 					.setPlaceholder("e.g., XXXX....apps.googleusercontent.com")
 					.setValue(this.plugin.settings.googleClientId)
 					.onChange(async (value) => {
-						console.log(value);
 						this.plugin.settings.googleClientId = value;
 						await this.plugin.saveSettings();
 						this.refreshDisplay();

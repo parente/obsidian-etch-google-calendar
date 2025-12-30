@@ -1,5 +1,4 @@
 import { calendar_v3, google, tasks_v1 } from "googleapis";
-import { OAuthServer, type OAuthCredentials } from "oauth";
 import { type Credentials } from "google-auth-library";
 
 // Values required for Google Calendar API access and token management
@@ -21,7 +20,7 @@ export interface CalendarData {
 	tasks: tasks_v1.Schema$Tasks | null;
 }
 
-export class GoogleCalendarAPI {
+export class GoogleCalendarClient {
 	private credentials: GoogleCalendarCredentials;
 	private calendar: calendar_v3.Calendar;
 	private tasks: tasks_v1.Tasks;
