@@ -1,5 +1,6 @@
-import { calendar_v3, google, tasks_v1 } from "googleapis";
-import { type Credentials } from "google-auth-library";
+import { calendar_v3, calendar } from "@googleapis/calendar";
+import { tasks_v1, tasks } from "@googleapis/tasks";
+import { OAuth2Client, type Credentials } from "google-auth-library";
 
 // Values required for Google Calendar API access and token management
 export interface GoogleCalendarCredentials {
@@ -36,11 +37,11 @@ export class GoogleCalendarClient {
 	}
 
 	private initializeAPI() {
-		const auth = new google.auth.OAuth2(
-			this.credentials.clientId,
-			this.credentials.clientSecret,
-			this.credentials.callbackUrl
-		);
+		const auth = new OAuth2Client({
+			clientId: this.credentials.clientId,
+			clientSecret: this.credentials.clientSecret,
+			redirectUri: this.credentials.callbackUrl,
+		});
 
 		if (this.credentials.accessToken) {
 			auth.setCredentials({
@@ -61,8 +62,8 @@ export class GoogleCalendarClient {
 			});
 		}
 
-		this.calendar = google.calendar({ version: "v3", auth });
-		this.tasks = google.tasks({ version: "v1", auth });
+		this.calendar = calendar({ version: "v3", auth });
+		this.tasks = tasks({ version: "v1", auth });
 	}
 
 	async getEventsForDate(date: string): Promise<calendar_v3.Schema$Events | null> {

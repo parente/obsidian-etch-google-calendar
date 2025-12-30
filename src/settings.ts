@@ -1,43 +1,50 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import EtchPlugin from "./main";
+import EtchGoogleCalendarPlugin from "./main";
 
-export interface EtchPluginSettings {
+export interface EtchGoogleCalendarPluginSettings {
 	googleClientId: string;
 	googleClientSecret: string;
 	googleAccessToken?: string;
 	googleRefreshToken?: string;
 }
 
-export const DEFAULT_SETTINGS: EtchPluginSettings = {
+export const DEFAULT_SETTINGS: EtchGoogleCalendarPluginSettings = {
 	googleClientId: "",
 	googleClientSecret: "",
 };
 
-export class EtchPluginSettingTab extends PluginSettingTab {
-	plugin: EtchPlugin;
-	authorizeSetting?: Setting;
+export class EtchGoogleCalendarPluginSettingTab extends PluginSettingTab {
+	plugin: EtchGoogleCalendarPlugin;
+	clientIDSetting: Setting;
+	clientSecretSetting: Setting;
+	authorizeSetting: Setting;
 
-	constructor(app: App, plugin: EtchPlugin) {
+	constructor(app: App, plugin: EtchGoogleCalendarPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
 	private refreshDisplay(): void {
 		// Reflect the current authorization state properly
-		this.authorizeSetting?.controlEl.empty();
+		this.authorizeSetting.controlEl.empty();
+
 		if (this.plugin.settings.googleAccessToken) {
+			this.clientIDSetting.setDisabled(true);
+			this.clientSecretSetting.setDisabled(true);
+
 			this.authorizeSetting
 				?.setName("Calendar access: Granted ✅")
 				.setDesc("Click to remove Obsidian's access to your Google Calendar")
 				.addButton((button) =>
-					button.setButtonText("Deauthorize").onClick(async () => {
-						delete this.plugin.settings.googleAccessToken;
-						delete this.plugin.settings.googleRefreshToken;
-						await this.plugin.saveSettings();
+					button.setButtonText("Revoke").onClick(async () => {
+						await this.plugin.revokeGoogleCalendarAccess();
 						this.refreshDisplay();
 					})
 				);
 		} else {
+			this.clientIDSetting.setDisabled(false);
+			this.clientSecretSetting.setDisabled(false);
+
 			this.authorizeSetting
 				?.setName("Calendar access: Pending")
 				.setDesc("Click to give Obsidian access to your Google Calendar")
@@ -63,7 +70,7 @@ export class EtchPluginSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Google Calendar").setHeading();
 
-		new Setting(containerEl)
+		this.clientIDSetting = new Setting(containerEl)
 			.setName("Google client ID")
 			.setDesc("Enter an OAuth 2.0 client ID from the Google Cloud console")
 			.addText((text) =>
@@ -77,7 +84,7 @@ export class EtchPluginSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
+		this.clientSecretSetting = new Setting(containerEl)
 			.setName("Google client secret")
 			.setDesc("Enter an OAuth 2.0 client secret from the Google Cloud console")
 			.addText((text) => {

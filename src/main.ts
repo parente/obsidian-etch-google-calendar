@@ -1,47 +1,52 @@
 import { Notice, Plugin } from "obsidian";
-import { DEFAULT_SETTINGS, type EtchPluginSettings, EtchPluginSettingTab } from "settings";
+import {
+	DEFAULT_SETTINGS,
+	EtchGoogleCalendarPluginSettingTab,
+	type EtchGoogleCalendarPluginSettings,
+} from "settings";
 import { type Credentials } from "google-auth-library";
 import { GOOGLE_CALENDAR_SCOPES, GoogleCalendarClient, type GoogleCalendarCredentials } from "gcal";
 import { OAuthServer } from "oauth";
+import { createSvelteCodeBlockProcessor } from "block";
+import DailyEvents from "./ui/DailyEventsBlock.svelte";
 
-export default class EtchPlugin extends Plugin {
-	settings: EtchPluginSettings;
+export default class EtchGoogleCalendarPlugin extends Plugin {
+	settings: EtchGoogleCalendarPluginSettings;
 	oauthServer: OAuthServer;
-	googleCalendar: GoogleCalendarClient;
+	gcalClient: GoogleCalendarClient;
 
-	async onload() {
+	async onload(): Promise<void> {
 		// Create a local server to handle OAuth flows
 		this.oauthServer = new OAuthServer();
 
 		// Load saved settings
 		await this.loadSettings();
 		// Add a settings dialog tab
-		this.addSettingTab(new EtchPluginSettingTab(this.app, this));
+		this.addSettingTab(new EtchGoogleCalendarPluginSettingTab(this.app, this));
 
-		// Try to initialize the calendar client
-		this.initGoogleCalendarClient();
+		// Try to initialize the calendar client with saved credentials
+		await this.initGoogleCalendarClient();
 	}
 
-	onunload() {
-		this.googleCalendar?.cleanup();
-		this.oauthServer?.cleanup();
+	onunload(): void {
+		this.oauthServer.cleanup();
+		this.gcalClient?.cleanup();
 	}
 
-	async loadSettings() {
+	async loadSettings(): Promise<void> {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			(await this.loadData()) as Partial<EtchPluginSettings>
+			(await this.loadData()) as Partial<EtchGoogleCalendarPluginSettings>
 		);
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
 	}
 
-	async authorizeGoogleCalendarAccess() {
+	async authorizeGoogleCalendarAccess(): Promise<void> {
 		if (!this.settings.googleClientId || !this.settings.googleClientSecret) {
-			// TODO: handle case https://github.com/obsidianmd/eslint-plugin/blob/master/docs/rules/ui/sentence-case.md
 			new Notice("Both Google client ID and client secret are required.");
 			return;
 		}
@@ -58,8 +63,7 @@ export default class EtchPlugin extends Plugin {
 				this.settings.googleAccessToken = tokens.access_token;
 				this.settings.googleRefreshToken = tokens.refresh_token || "";
 				await this.saveSettings();
-
-				this.initGoogleCalendarClient();
+				await this.initGoogleCalendarClient();
 			}
 		} catch (error) {
 			new Notice(`Authorization failed: ${error}`);
@@ -67,7 +71,14 @@ export default class EtchPlugin extends Plugin {
 		}
 	}
 
-	async initGoogleCalendarClient() {
+	async revokeGoogleCalendarAccess(): Promise<void> {
+		delete this.settings.googleAccessToken;
+		delete this.settings.googleRefreshToken;
+		await this.saveSettings();
+		this.gcalClient?.cleanup();
+	}
+
+	async initGoogleCalendarClient(): Promise<void> {
 		if (!this.settings.googleAccessToken || !this.settings.googleRefreshToken) {
 			// Don't build the client until the user has authorized calendar access and we have
 			// access and refresh tokens
@@ -92,12 +103,11 @@ export default class EtchPlugin extends Plugin {
 			await this.saveSettings();
 		};
 
-		this.googleCalendar = new GoogleCalendarClient(credentials, onTokensUpdated);
+		this.gcalClient = new GoogleCalendarClient(credentials, onTokensUpdated);
 
-		await this.registerMarkdownCodeBlockProcessor(
-			"etch-google-calendar"
-			createCodeBlockProcessor(this.googleCalendar)
+		this.registerMarkdownCodeBlockProcessor(
+			"etch-google-calendar",
+			createSvelteCodeBlockProcessor(DailyEvents, { gcalClient: this.gcalClient })
 		);
-		
 	}
 }

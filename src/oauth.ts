@@ -1,7 +1,6 @@
 import * as http from "http";
 import * as url from "url";
-import { google } from "googleapis";
-import { type Credentials } from "google-auth-library";
+import { type Credentials, OAuth2Client } from "google-auth-library";
 
 export interface OAuthCredentials {
 	clientId: string;
@@ -116,11 +115,11 @@ export class OAuthServer {
 	}
 
 	private createOAuth2Client(credentials: OAuthCredentials) {
-		return new google.auth.OAuth2(
-			credentials.clientId,
-			credentials.clientSecret,
-			this.callbackUrl
-		);
+		return new OAuth2Client({
+			clientId: credentials.clientId,
+			clientSecret: credentials.clientSecret,
+			redirectUri: this.callbackUrl,
+		});
 	}
 
 	private generateAuthUrl(credentials: OAuthCredentials, scopes: string[]): string {
