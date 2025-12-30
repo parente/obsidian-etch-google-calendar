@@ -1,13 +1,7 @@
-import {
-	App,
-	MarkdownRenderChild,
-	TFile,
-	type MarkdownPostProcessorContext,
-	type MarkdownSectionInformation,
-} from "obsidian";
+import { App, MarkdownRenderChild, TFile, type MarkdownPostProcessorContext } from "obsidian";
 import { mount, unmount, type Component } from "svelte";
 
-class SvelteCodeBlock extends MarkdownRenderChild {
+class SvelteEtcher extends MarkdownRenderChild {
 	private source: string;
 	private ctx: MarkdownPostProcessorContext;
 	private app: App;
@@ -48,7 +42,7 @@ class SvelteCodeBlock extends MarkdownRenderChild {
 
 	etch = async (newEtching: string): Promise<void> => {
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
-		console.debug("SvelteCodeBlock.etch => sectionInfo:", this.sectionInfo);
+		console.debug("SvelteCodeBlock.etch => sectionInfo:", sectionInfo);
 		if (!sectionInfo) return;
 
 		const file = this.app.vault.getAbstractFileByPath(this.ctx.sourcePath);
@@ -67,9 +61,9 @@ class SvelteCodeBlock extends MarkdownRenderChild {
 	};
 }
 
-export function createSvelteCodeBlockProcessor(app: App, componentCls: Component, props: object) {
+export function createSvelteEtcher(app: App, componentCls: Component, props: object) {
 	return (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
-		const child = new SvelteCodeBlock(source, el, ctx, app, componentCls, props);
+		const child = new SvelteEtcher(source, el, ctx, app, componentCls, props);
 		ctx.addChild(child);
 	};
 }

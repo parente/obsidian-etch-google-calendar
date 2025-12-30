@@ -7,7 +7,7 @@ import {
 import { type Credentials } from "google-auth-library";
 import { GOOGLE_CALENDAR_SCOPES, GoogleCalendarClient, type GoogleCalendarCredentials } from "gcal";
 import { OAuthServer } from "oauth";
-import { createSvelteCodeBlockProcessor } from "block";
+import { createSvelteEtcher } from "etcher";
 import DailyEvents from "./ui/DailyEventsBlock.svelte";
 
 export default class EtchGoogleCalendarPlugin extends Plugin {
@@ -107,7 +107,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor(
 			"etch-google-calendar",
-			createSvelteCodeBlockProcessor(this.app, DailyEvents, { gcalClient: this.gcalClient })
+			createSvelteEtcher(this.app, DailyEvents, { gcalClient: this.gcalClient })
 		);
 	}
 }
