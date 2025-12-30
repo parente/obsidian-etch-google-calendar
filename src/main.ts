@@ -107,7 +107,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 
 		this.registerMarkdownCodeBlockProcessor(
 			"etch-google-calendar",
-			createSvelteCodeBlockProcessor(DailyEvents, { gcalClient: this.gcalClient })
+			createSvelteCodeBlockProcessor(this.app, DailyEvents, { gcalClient: this.gcalClient })
 		);
 	}
 }
