@@ -1,33 +1,29 @@
 <script lang="ts">
 	import type EtchGoogleCalendarPlugin from "main";
+	import { calendar_v3 } from "@googleapis/calendar";
+	import { PenTool } from "@lucide/svelte";
 
 	interface Props {
 		/** Currently etched content within the block */
-		oldEtching: string;
+		source: string;
 		/** Callback to etch new content within the block */
 		etch: (newEtching: string) => Promise<void>;
 		/** Plugin instance */
 		plugin: EtchGoogleCalendarPlugin;
 	}
 
-	const { oldEtching, plugin, etch }: Props = $props();
-	const lastLoad = new Date();
-	let lastRefresh = $state(lastLoad);
+	const { source, plugin, etch }: Props = $props();
 
-	const refresh = $derived.by(async () => {
-		console.log("DailyEventsBlock.refresh => gcalClient:", plugin.gcalClient);
-		console.log("DailyEventsBlock.refresh => lastRefresh:", lastRefresh);
-		console.log("DailyEventsBlock.refresh => lastLoad:", lastLoad);
-		if (lastRefresh === lastLoad || !plugin.gcalClient) {
-			console.debug("DailyEventsBlock => using cached etching");
-			return oldEtching;
-		}
-		console.debug("DailyEventsBlock => fetching new content");
-		// TODO: date from doc
-		const resp = await plugin.gcalClient.getEventsForDate("2027-04-04");
+	let statusContent = $state("");
+	let displayContent = $state("");
+
+	$effect(() => {
+		displayContent = source;
+	});
+
+	function eventsToLines(resp: calendar_v3.Schema$Events | null): string {
 		const lines: string[] = [];
 		for (const item of resp?.items || []) {
-			// console.debug("DailyEventsBlock => resp.item:", item);
 			if (item.eventType === "default" || item.eventType === "focusTime") {
 				if (item.start?.dateTime) {
 					const dateTime = new Date(item.start.dateTime);
@@ -40,26 +36,66 @@
 				}
 			}
 		}
-		const newEtching = lines.join("\n") || `No events as of ${lastRefresh.toLocaleString()}`;
-		await etch(newEtching);
-		return newEtching;
-	});
+		return lines.join("\n") || "No events";
+	}
+
+	async function handleRefresh() {
+		if (!plugin.gcalClient) {
+			statusContent = "✋ Connect your Google Calendar in the plugin settings";
+			return;
+		}
+
+		statusContent = "⏳ Etching ...";
+		try {
+			const resp = await plugin.gcalClient.getEventsForDate("2025-12-30");
+			const newSource = eventsToLines(resp);
+			await etch(newSource);
+			displayContent = newSource;
+		} catch (error) {
+			// TODO: some kind of error message
+		} finally {
+			statusContent = "";
+		}
+	}
 </script>
 
-{#await refresh}
-	<pre>⏳ Etching ...</pre>
-{:then newEtching}
-	<pre>{newEtching || "ℹ️ Google Calendar access required"}</pre>
-{:catch}
-	<pre>{oldEtching}</pre>
-{/await}
+{#if displayContent}
+	<pre>{displayContent}</pre>
+{:else}
+	<pre><em
+			>Click <PenTool
+				aria-label="The etch icon"
+				size="12"
+			/> to get Google Calendar events and etch them into the note</em
+		></pre>
+{/if}
 
-<button
-	onclick={() => {
-		console.log("refresh.onclick");
-		lastRefresh = new Date();
-	}}>Refresh</button
->
+<div class="footer">
+	<span class="status">{statusContent}</span>
+	<button
+		onclick={handleRefresh}
+		aria-label="Get Google Calendar events and etch them into the note"
+		><PenTool size="12" /></button
+	>
+</div>
 
 <style>
+	.footer {
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		gap: 8px;
+		min-height: 24px;
+	}
+
+	.status {
+		margin-left: var(--size-4-1);
+		margin-right: auto;
+		line-height: 24px;
+	}
+
+	.footer button {
+		height: inherit;
+		cursor: pointer;
+	}
 </style>

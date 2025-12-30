@@ -35,7 +35,11 @@ class SvelteEtcher extends MarkdownRenderChild {
 		console.debug("SvelteCodeBlock.onload");
 		this.component = mount(this.componentCls, {
 			target: this.containerEl,
-			props: { oldEtching: this.source, etch: this.etch, plugin: this.plugin },
+			props: {
+				source: this.source,
+				etch: this.etch,
+				plugin: this.plugin,
+			},
 		});
 	}
 
