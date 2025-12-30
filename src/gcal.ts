@@ -22,6 +22,7 @@ export interface CalendarData {
 }
 
 export class GoogleCalendarClient {
+	private auth: OAuth2Client;
 	private credentials: GoogleCalendarCredentials;
 	private calendar: calendar_v3.Calendar;
 	private tasks: tasks_v1.Tasks;
@@ -33,24 +34,21 @@ export class GoogleCalendarClient {
 	) {
 		this.credentials = credentials;
 		this.onTokensUpdated = onTokensUpdated;
-		this.initializeAPI();
-	}
 
-	private initializeAPI() {
-		const auth = new OAuth2Client({
+		this.auth = new OAuth2Client({
 			clientId: this.credentials.clientId,
 			clientSecret: this.credentials.clientSecret,
 			redirectUri: this.credentials.callbackUrl,
 		});
 
 		if (this.credentials.accessToken) {
-			auth.setCredentials({
+			this.auth.setCredentials({
 				access_token: this.credentials.accessToken,
 				refresh_token: this.credentials.refreshToken,
 			});
 
 			// Set up automatic token refresh
-			auth.on("tokens", (tokens) => {
+			this.auth.on("tokens", (tokens) => {
 				if (tokens.refresh_token) {
 					this.credentials.refreshToken = tokens.refresh_token;
 				}
@@ -62,8 +60,8 @@ export class GoogleCalendarClient {
 			});
 		}
 
-		this.calendar = calendar({ version: "v3", auth });
-		this.tasks = tasks({ version: "v1", auth });
+		this.calendar = calendar({ version: "v3", auth: this.auth });
+		this.tasks = tasks({ version: "v1", auth: this.auth });
 	}
 
 	async getEventsForDate(date: string): Promise<calendar_v3.Schema$Events | null> {
@@ -156,5 +154,7 @@ export class GoogleCalendarClient {
 		}
 	}
 
-	cleanup(): void {}
+	cleanup(): void {
+		this.auth.removeAllListeners();
+	}
 }

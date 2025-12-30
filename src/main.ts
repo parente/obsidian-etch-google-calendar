@@ -7,15 +7,16 @@ import {
 import { type Credentials } from "google-auth-library";
 import { GOOGLE_CALENDAR_SCOPES, GoogleCalendarClient, type GoogleCalendarCredentials } from "gcal";
 import { OAuthServer } from "oauth";
-import { createSvelteEtcher } from "etcher";
 import DailyEvents from "./ui/DailyEventsBlock.svelte";
+import { createSvelteEtcher } from "etcher";
 
 export default class EtchGoogleCalendarPlugin extends Plugin {
+	private oauthServer: OAuthServer;
 	settings: EtchGoogleCalendarPluginSettings;
-	oauthServer: OAuthServer;
-	gcalClient: GoogleCalendarClient;
+	gcalClient?: GoogleCalendarClient;
 
 	async onload(): Promise<void> {
+		console.debug("EtchGoogleCalendarPlugin.onload");
 		// Create a local server to handle OAuth flows
 		this.oauthServer = new OAuthServer();
 
@@ -26,11 +27,19 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 
 		// Try to initialize the calendar client with saved credentials
 		await this.initGoogleCalendarClient();
+
+		// Register a Svelte code block processor to render and etch Google Calendar data
+		this.registerMarkdownCodeBlockProcessor(
+			"etch-google-calendar",
+			createSvelteEtcher(this.app, this, DailyEvents)
+		);
 	}
 
 	onunload(): void {
+		console.debug("EtchGoogleCalendarPlugin.onunload");
 		this.oauthServer.cleanup();
 		this.gcalClient?.cleanup();
+		delete this.gcalClient;
 	}
 
 	async loadSettings(): Promise<void> {
@@ -43,6 +52,12 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 
 	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
+	}
+
+	get svelteProps(): object {
+		return {
+			gcalClient: this.gcalClient,
+		};
 	}
 
 	async authorizeGoogleCalendarAccess(): Promise<void> {
@@ -76,6 +91,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 		delete this.settings.googleRefreshToken;
 		await this.saveSettings();
 		this.gcalClient?.cleanup();
+		delete this.gcalClient;
 	}
 
 	async initGoogleCalendarClient(): Promise<void> {
@@ -104,10 +120,5 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 		};
 
 		this.gcalClient = new GoogleCalendarClient(credentials, onTokensUpdated);
-
-		this.registerMarkdownCodeBlockProcessor(
-			"etch-google-calendar",
-			createSvelteEtcher(this.app, DailyEvents, { gcalClient: this.gcalClient })
-		);
 	}
 }
