@@ -43,20 +43,23 @@
 		return lines.join("\n") || "No events";
 	}
 
+	/** Attempts to get a date string (YYYY-MM-DD) from a note title / filename */
 	function dateFromPath(sourcePath: string): string | null {
+		// Get the filename without extension
 		const parts = sourcePath.split("/");
 		const fileName = parts[parts.length - 1]?.replace(/\.md$/, "");
 		if (!fileName) return null;
 
-		// Use moment.js (already a dependency via Obsidian) for reliable date parsing
-		// This handles various date formats and avoids timezone issues
+		// Assume Obsidian will continue to make momentjs available globally
 		const m = window.moment(fileName, "YYYY-MM-DD", true);
 		if (!m.isValid()) return null;
 
 		return m.format("YYYY-MM-DD");
 	}
 
-	/** Handles a refresh button click by refreshing the   */
+	/** Refreshes the Google Calendar events displayed and etched into the note markdown code block
+	 *  for the date specified in the fence parameters or the note name.
+	 */
 	async function handleRefresh() {
 		console.debug("DailyEventsBlock.handleRefresh");
 		if (!plugin.gcalClient) {
@@ -82,7 +85,6 @@
 			displayContent = newSource;
 			statusContent = `Updated: ${new Date().toLocaleString()}`;
 		} catch (error) {
-			// TODO: some kind of error status
 			statusContent = String(error);
 		}
 	}

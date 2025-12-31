@@ -63,7 +63,7 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		// Extract YAML parameters from a line like ```etch-something{...}
 		const match = lines[sectionInfo.lineStart]?.match(/(\{.*\})/);
 		if (!match || !match[1]) return {};
-		return parseYaml(match[1]);
+		return parseYaml(match[1]) as { [key: string]: unknown };
 	}
 
 	public async etch(newEtching: string): Promise<void> {

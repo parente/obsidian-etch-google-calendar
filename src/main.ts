@@ -81,7 +81,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 				await this.initGoogleCalendarClient();
 			}
 		} catch (error) {
-			new Notice(`Authorization failed: ${error}`);
+			new Notice(`Authorization failed: ${String(error)}`);
 			console.error("Error during OAuth flow:", error);
 		}
 	}

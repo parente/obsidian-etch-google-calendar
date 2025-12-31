@@ -33,7 +33,7 @@ export class EtchGoogleCalendarPluginSettingTab extends PluginSettingTab {
 			this.clientSecretSetting.setDisabled(true);
 
 			this.authorizeSetting
-				?.setName("Calendar access: Granted ✅")
+				?.setName("Calendar access: granted ✅")
 				.setDesc("Click to remove Obsidian's access to your Google Calendar")
 				.addButton((button) =>
 					button.setButtonText("Revoke").onClick(async () => {
@@ -46,7 +46,7 @@ export class EtchGoogleCalendarPluginSettingTab extends PluginSettingTab {
 			this.clientSecretSetting.setDisabled(false);
 
 			this.authorizeSetting
-				?.setName("Calendar access: Pending")
+				?.setName("Calendar access: pending")
 				.setDesc("Click to give Obsidian access to your Google Calendar")
 				.addButton((button) =>
 					button.setButtonText("Authorize").onClick(async () => {
@@ -75,7 +75,7 @@ export class EtchGoogleCalendarPluginSettingTab extends PluginSettingTab {
 			.setDesc("Enter an OAuth 2.0 client ID from the Google Cloud console")
 			.addText((text) =>
 				text
-					.setPlaceholder("e.g., XXXX....apps.googleusercontent.com")
+					.setPlaceholder("Example: XXXX....apps.googleusercontent.com")
 					.setValue(this.plugin.settings.googleClientId)
 					.onChange(async (value) => {
 						this.plugin.settings.googleClientId = value;
@@ -89,7 +89,7 @@ export class EtchGoogleCalendarPluginSettingTab extends PluginSettingTab {
 			.setDesc("Enter an OAuth 2.0 client secret from the Google Cloud console")
 			.addText((text) => {
 				text.inputEl.type = "password";
-				text.setPlaceholder("e.g., GOXXXX-X_XXXXXXXXXXXXXXXXXXXXXX")
+				text.setPlaceholder("Example: GOXXXX-...")
 					.setValue(this.plugin.settings.googleClientSecret)
 					.onChange(async (value) => {
 						this.plugin.settings.googleClientSecret = value;

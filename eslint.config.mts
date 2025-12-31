@@ -8,6 +8,7 @@ export default tseslint.config(
 		languageOptions: {
 			globals: {
 				...globals.browser,
+				...globals.node,
 			},
 			parserOptions: {
 				projectService: {
@@ -28,10 +29,22 @@ export default tseslint.config(
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",
+		"svelte.config.js",
 	]),
 	{
+		plugins: {
+			obsidianmd: obsidianmd,
+		},
 		rules: {
 			"import/no-nodejs-modules": "off",
+			"obsidianmd/ui/sentence-case": [
+				"warn",
+				{
+					acronyms: ["ID", "GOXXXX", "XXXX"],
+					brands: ["Google", "Google Calendar", "Google Cloud", "OAuth", "Obsidian"],
+					ignoreWords: ["e.g.,"],
+				},
+			],
 		},
 	}
 );
