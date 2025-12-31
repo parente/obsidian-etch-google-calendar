@@ -18,8 +18,8 @@
 	let statusContent = $state("");
 	let displayContent = $state("");
 
-	// Update the displayed content when the source changes. It won't but the linter complains
-	// when we do direct assignment to the state.
+	// Update the displayed content when the source changes. The parent will never change it,
+	// but the linter complains when we do direct assignment to the state.
 	$effect(() => {
 		displayContent = source;
 	});
@@ -28,16 +28,14 @@
 	function eventsToLines(resp: calendar_v3.Schema$Events | null): string {
 		const lines: string[] = [];
 		for (const item of resp?.items || []) {
-			if (item.eventType === "default" || item.eventType === "focusTime") {
-				if (item.start?.dateTime) {
-					const dateTime = new Date(item.start.dateTime);
-					const hours = dateTime.getHours().toString().padStart(2, "0");
-					const minutes = dateTime.getMinutes().toString().padStart(2, "0");
-					const start = `${hours}:${minutes}`;
-					lines.push(`${start.padEnd(15)} ${item.summary}`);
-				} else if (item.start?.date) {
-					lines.push(`${"00:00".padEnd(15)} ${item.summary}`);
-				}
+			if (item.start?.dateTime) {
+				console.debug(item.start.dateTime);
+				// Use moment to parse and preserve the original timezone
+				const eventTime = window.moment.parseZone(item.start.dateTime);
+				const start = eventTime.format("HH:mm");
+				lines.push(`${start.padEnd(15)} ${item.summary}`);
+			} else if (item.start?.date) {
+				lines.push(`${"00:00".padEnd(15)} ${item.summary}`);
 			}
 		}
 		return lines.join("\n") || "No events";
@@ -71,21 +69,29 @@
 			// Get the date from the fence or the name of the file if not specified
 			const date = (etcher.fenceParams.date as string) || dateFromPath(etcher.sourcePath);
 			if (!date) {
-				statusContent = "✋ No date in ```etch-google-calendar{date: ...} or note name";
+				statusContent =
+					"✋ No date in code block <code>```etch-google-calendar{date: ...}</code> or note name";
 				return;
 			}
 			statusContent = `⏳ Fetching events for ${date}...`;
 			// Fetch latest calendar events
-			const resp = await plugin.gcalClient.getEventsForDate(date);
+			const resp = await plugin.gcalClient.getEventsForDate({
+				date,
+				eventTypes: ["default", "focusTime"],
+			});
 			// Convert to plain text
 			const newSource = eventsToLines(resp);
 			// Etch the text into the source doc
 			await etcher.etch(newSource);
 			// Update displayed content
 			displayContent = newSource;
-			statusContent = `Updated: ${new Date().toLocaleString()}`;
+			statusContent = `✔️ Updated: ${new Date().toLocaleString()}`;
 		} catch (error) {
-			statusContent = String(error);
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unknown error occurred etching calendar events";
+			statusContent = `❌ ${message}`;
 		}
 	}
 </script>
@@ -102,7 +108,7 @@
 {/if}
 
 <div class="footer">
-	<span class="status">{statusContent}</span>
+	<span class="status">{@html statusContent}</span>
 	<button
 		onclick={handleRefresh}
 		aria-label="Get Google Calendar events and etch them into the note"

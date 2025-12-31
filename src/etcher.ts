@@ -40,12 +40,6 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
 				if (oldPath === this.currentPath) {
-					console.debug(
-						"SvelteCodeBlock: detected rename of source file, updating currentPath:",
-						oldPath,
-						"->",
-						file.path
-					);
 					this.currentPath = file.path;
 				}
 			})

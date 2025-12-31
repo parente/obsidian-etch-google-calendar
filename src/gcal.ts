@@ -1,5 +1,6 @@
 import { calendar_v3, calendar } from "@googleapis/calendar";
 import { OAuth2Client, type Credentials } from "google-auth-library";
+import moment from "moment-timezone";
 
 // Values required for Google Calendar API access and token management
 export interface GoogleCalendarCredentials {
@@ -60,30 +61,108 @@ export class GoogleCalendarClient {
 		this.calendar = calendar({ version: "v3", auth: this.auth });
 	}
 
-	async getEventsForDate(date: string): Promise<calendar_v3.Schema$Events | null> {
+	/**
+	 * Gets the timezone of a calendar.
+	 *
+	 * @param calendarId Defaults to "primary"
+	 * @returns IANA timezone name
+	 */
+	async getCalendarTimeZone(calendarId: string = "primary"): Promise<string> {
 		try {
-			if (!this.credentials.clientId || !this.credentials.clientSecret) {
-				throw new Error("Google Calendar API credentials not configured");
-			}
-
-			const startOfDay = new Date(date);
-			startOfDay.setHours(0, 0, 0, 0);
-
-			const endOfDay = new Date(date);
-			endOfDay.setHours(23, 59, 59, 999);
-
-			const response = await this.calendar.events.list({
+			const calGet = await this.calendar.calendars.get({
 				calendarId: "primary",
-				timeMin: startOfDay.toISOString(),
-				timeMax: endOfDay.toISOString(),
+			});
+			return calGet.data.timeZone || "UTC";
+		} catch (error) {
+			console.error("Error fetching calendar timezone:", error);
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unknown error occurred fetching calendar timezone";
+			throw new Error(`Failed to fetch calendar timezone: ${message}`);
+		}
+	}
+
+	/**
+	 * Filters out events that do not start on the specified date, to handle spillover events from
+	 * previous or next days.
+	 */
+	private filterSpilloverEvents(
+		events: calendar_v3.Schema$Event[],
+		date: string,
+		calendarTimeZone: string
+	): calendar_v3.Schema$Event[] {
+		const startOfDay = moment.tz(date, calendarTimeZone).startOf("day");
+		const endOfDay = moment.tz(date, calendarTimeZone).endOf("day");
+
+		return events.filter((event) => {
+			// Keep all-day events
+			if (event.start?.date && !event.start?.dateTime) {
+				return true;
+			}
+			// Drop anything else without a start time
+			const startTime = event.start?.dateTime;
+			if (!startTime) return false;
+			// Keep any event starting within the day
+			const eventStart = moment.tz(startTime, calendarTimeZone);
+			return eventStart.isSameOrAfter(startOfDay) && eventStart.isSameOrBefore(endOfDay);
+		});
+	}
+
+	/**
+	 * Gets events for a single date in a calendar's configured timezone.
+	 *
+	 * @param date in YYYY-MM-DD format
+	 * @param calendarId Defaults to "primary"
+	 * @param eventTypes Optional array of event types to filter by
+	 * @returns Events or null on error
+	 */
+	async getEventsForDate({
+		date,
+		calendarId = "primary",
+		eventTypes,
+	}: {
+		date: string;
+		calendarId?: string;
+		eventTypes?: string[];
+	}): Promise<calendar_v3.Schema$Events> {
+		console.debug("GoogleCalendarClient.getEventsForDate => date:", date);
+		try {
+			const calendarTimeZone = await this.getCalendarTimeZone(calendarId);
+
+			// Query for events falling within the start and end of a day *in the calendar's
+			// timezone offset*
+			const timeMin = moment.tz(`${date} 00:00:00.000`, calendarTimeZone).format();
+			const timeMax = moment.tz(`${date} 23:59:59.999`, calendarTimeZone).format();
+			console.debug("GoogleCalendarClient.getEventsForDate => timeMin:", timeMin);
+			console.debug("GoogleCalendarClient.getEventsForDate => timeMax:", timeMax);
+
+			const evtList = await this.calendar.events.list({
+				calendarId: calendarId,
+				timeMin,
+				timeMax,
 				singleEvents: true,
+				eventTypes: eventTypes,
 				orderBy: "startTime",
 			});
 
-			return response.data;
+			// Filter to only include events that *start* on the given date
+			if (evtList.data.items) {
+				evtList.data.items = this.filterSpilloverEvents(
+					evtList.data.items,
+					date,
+					calendarTimeZone
+				);
+			}
+
+			return evtList.data;
 		} catch (error) {
 			console.error("Error fetching calendar events:", error);
-			return null;
+			const message =
+				error instanceof Error
+					? error.message
+					: "Unknown error occurred fetching calendar events";
+			throw new Error(`Failed to fetch calendar events: ${message}`);
 		}
 	}
 
