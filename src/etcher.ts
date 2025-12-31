@@ -15,6 +15,7 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 	private plugin: Plugin;
 	private componentCls: Component;
 	private component?: ReturnType<typeof mount>;
+	private currentPath: string;
 
 	constructor(
 		source: string,
@@ -30,10 +31,26 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		this.app = app;
 		this.plugin = plugin;
 		this.componentCls = componentCls;
+		this.currentPath = ctx.sourcePath;
 	}
 
 	onload() {
 		console.debug("SvelteCodeBlock.onload");
+
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) => {
+				if (oldPath === this.currentPath) {
+					console.debug(
+						"SvelteCodeBlock: detected rename of source file, updating currentPath:",
+						oldPath,
+						"->",
+						file.path
+					);
+					this.currentPath = file.path;
+				}
+			})
+		);
+
 		this.component = mount(this.componentCls, {
 			target: this.containerEl,
 			props: {
@@ -52,7 +69,7 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 	}
 
 	get sourcePath(): string {
-		return this.ctx.sourcePath;
+		return this.currentPath;
 	}
 
 	get fenceParams(): { [key: string]: unknown } {
@@ -71,7 +88,7 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		console.debug("SvelteCodeBlock.etch => sectionInfo:", sectionInfo);
 		if (!sectionInfo) return;
 
-		const file = this.app.vault.getAbstractFileByPath(this.ctx.sourcePath);
+		const file = this.app.vault.getAbstractFileByPath(this.sourcePath);
 		if (!(file instanceof TFile)) return;
 
 		await this.app.vault.process(file, (data: string) => {

@@ -76,7 +76,7 @@
 			}
 			statusContent = `⏳ Fetching events for ${date}...`;
 			// Fetch latest calendar events
-			const resp = await plugin.gcalClient.getEventsForDate("2026-01-06");
+			const resp = await plugin.gcalClient.getEventsForDate(date);
 			// Convert to plain text
 			const newSource = eventsToLines(resp);
 			// Etch the text into the source doc
@@ -111,6 +111,10 @@
 </div>
 
 <style>
+	pre {
+		font-size: var(--code-size);
+	}
+
 	.footer {
 		display: flex;
 		justify-content: flex-end;
