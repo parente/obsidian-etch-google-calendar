@@ -1,26 +1,30 @@
 <script lang="ts">
 	import type EtchGoogleCalendarPlugin from "main";
+	import type SvelteEtcher from "etcher";
 	import { calendar_v3 } from "@googleapis/calendar";
 	import { PenTool } from "@lucide/svelte";
 
 	interface Props {
 		/** Currently etched content within the block */
 		source: string;
-		/** Callback to etch new content within the block */
-		etch: (newEtching: string) => Promise<void>;
+		/** Etcher instance */
+		etcher: SvelteEtcher;
 		/** Plugin instance */
 		plugin: EtchGoogleCalendarPlugin;
 	}
+	const { source, plugin, etcher }: Props = $props();
 
-	const { source, plugin, etch }: Props = $props();
-
+	// Reactive state variables
 	let statusContent = $state("");
 	let displayContent = $state("");
 
+	// Update the displayed content when the source changes. It won't but the linter complains
+	// when we do direct assignment to the state.
 	$effect(() => {
 		displayContent = source;
 	});
 
+	/** Converts Google Calendar events to a plain text string of times and titles. */
 	function eventsToLines(resp: calendar_v3.Schema$Events | null): string {
 		const lines: string[] = [];
 		for (const item of resp?.items || []) {
@@ -32,29 +36,54 @@
 					const start = `${hours}:${minutes}`;
 					lines.push(`${start.padEnd(15)} ${item.summary}`);
 				} else if (item.start?.date) {
-					lines.push(`All day   ${item.summary}`);
+					lines.push(`${"00:00".padEnd(15)} ${item.summary}`);
 				}
 			}
 		}
 		return lines.join("\n") || "No events";
 	}
 
+	function dateFromPath(sourcePath: string): string | null {
+		const parts = sourcePath.split("/");
+		const fileName = parts[parts.length - 1]?.replace(/\.md$/, "");
+		if (!fileName) return null;
+
+		// Use moment.js (already a dependency via Obsidian) for reliable date parsing
+		// This handles various date formats and avoids timezone issues
+		const m = window.moment(fileName, "YYYY-MM-DD", true);
+		if (!m.isValid()) return null;
+
+		return m.format("YYYY-MM-DD");
+	}
+
+	/** Handles a refresh button click by refreshing the   */
 	async function handleRefresh() {
+		console.debug("DailyEventsBlock.handleRefresh");
 		if (!plugin.gcalClient) {
 			statusContent = "✋ Connect your Google Calendar in the plugin settings";
 			return;
 		}
 
-		statusContent = "⏳ Etching ...";
 		try {
-			const resp = await plugin.gcalClient.getEventsForDate("2025-12-30");
+			// Get the date from the fence or the name of the file if not specified
+			const date = (etcher.fenceParams.date as string) || dateFromPath(etcher.sourcePath);
+			if (!date) {
+				statusContent = "✋ No date in ```etch-google-calendar{date: ...} or note name";
+				return;
+			}
+			statusContent = `⏳ Fetching events for ${date}...`;
+			// Fetch latest calendar events
+			const resp = await plugin.gcalClient.getEventsForDate("2026-01-06");
+			// Convert to plain text
 			const newSource = eventsToLines(resp);
-			await etch(newSource);
+			// Etch the text into the source doc
+			await etcher.etch(newSource);
+			// Update displayed content
 			displayContent = newSource;
+			statusContent = `Updated: ${new Date().toLocaleString()}`;
 		} catch (error) {
-			// TODO: some kind of error message
-		} finally {
-			statusContent = "";
+			// TODO: some kind of error status
+			statusContent = String(error);
 		}
 	}
 </script>
@@ -92,10 +121,18 @@
 		margin-left: var(--size-4-1);
 		margin-right: auto;
 		line-height: 24px;
+		font-size: var(--font-smallest);
+		opacity: 0.7;
 	}
 
 	.footer button {
 		height: inherit;
 		cursor: pointer;
+		opacity: 0.7;
+		transition: opacity 0.2s ease;
+	}
+
+	.footer button:hover {
+		opacity: 1;
 	}
 </style>

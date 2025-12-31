@@ -1,13 +1,14 @@
 import {
 	App,
 	MarkdownRenderChild,
+	parseYaml,
 	Plugin,
 	TFile,
 	type MarkdownPostProcessorContext,
 } from "obsidian";
 import { mount, unmount, type Component } from "svelte";
 
-class SvelteEtcher extends MarkdownRenderChild {
+export default class SvelteEtcher extends MarkdownRenderChild {
 	private source: string;
 	private ctx: MarkdownPostProcessorContext;
 	private app: App;
@@ -37,7 +38,7 @@ class SvelteEtcher extends MarkdownRenderChild {
 			target: this.containerEl,
 			props: {
 				source: this.source,
-				etch: this.etch,
+				etcher: this,
 				plugin: this.plugin,
 			},
 		});
@@ -50,7 +51,22 @@ class SvelteEtcher extends MarkdownRenderChild {
 		}
 	}
 
-	etch = async (newEtching: string): Promise<void> => {
+	get sourcePath(): string {
+		return this.ctx.sourcePath;
+	}
+
+	get fenceParams(): { [key: string]: unknown } {
+		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
+		if (!sectionInfo) return {};
+
+		const lines = sectionInfo.text.split("\n");
+		// Extract YAML parameters from a line like ```etch-something{...}
+		const match = lines[sectionInfo.lineStart]?.match(/(\{.*\})/);
+		if (!match || !match[1]) return {};
+		return parseYaml(match[1]);
+	}
+
+	public async etch(newEtching: string): Promise<void> {
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
 		console.debug("SvelteCodeBlock.etch => sectionInfo:", sectionInfo);
 		if (!sectionInfo) return;
@@ -69,7 +85,7 @@ class SvelteEtcher extends MarkdownRenderChild {
 			];
 			return newLines.join("\n");
 		});
-	};
+	}
 }
 
 export function createSvelteEtcher(app: App, plugin: Plugin, componentCls: Component) {
