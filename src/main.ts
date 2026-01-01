@@ -1,99 +1,125 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+/**
+ * Plugin entry point and controller.
+ */
+import { Notice, Plugin } from "obsidian";
+import {
+    DEFAULT_SETTINGS,
+    EtchGoogleCalendarPluginSettingTab,
+    type EtchGoogleCalendarPluginSettings,
+} from "settings";
+import { type Credentials } from "google-auth-library";
+import { GOOGLE_CALENDAR_SCOPES, GoogleCalendarClient, type GoogleCalendarCredentials } from "gcal";
+import { OAuthServer } from "oauth";
+import DailyEvents from "./ui/DailyEventsBlock.svelte";
+import { createSvelteEtcher } from "etcher";
 
-// Remember to rename these classes and interfaces!
+export default class EtchGoogleCalendarPlugin extends Plugin {
+    private oauthServer: OAuthServer;
+    settings: EtchGoogleCalendarPluginSettings;
+    gcalClient?: GoogleCalendarClient;
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+    async onload(): Promise<void> {
+        // Create a local server to handle OAuth flows
+        this.oauthServer = new OAuthServer();
 
-	async onload() {
-		await this.loadSettings();
+        // Load saved settings
+        await this.loadSettings();
+        // Add a settings dialog tab
+        this.addSettingTab(new EtchGoogleCalendarPluginSettingTab(this.app, this));
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
+        // Try to initialize the calendar client with saved credentials
+        await this.initGoogleCalendarClient();
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
+        // Register a Svelte code block processor to render and etch Google Calendar data
+        this.registerMarkdownCodeBlockProcessor(
+            "etch-google-calendar",
+            createSvelteEtcher(this.app, this, DailyEvents)
+        );
+    }
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+    onunload(): void {
+        this.oauthServer.cleanup();
+        this.gcalClient?.cleanup();
+        delete this.gcalClient;
+    }
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
+    async loadSettings(): Promise<void> {
+        this.settings = Object.assign(
+            {},
+            DEFAULT_SETTINGS,
+            (await this.loadData()) as Partial<EtchGoogleCalendarPluginSettings>
+        );
+    }
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+    async saveSettings(): Promise<void> {
+        await this.saveData(this.settings);
+    }
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
+    /**
+     * Starts the flow to authorize plugin access to the user's Google Calendar.
+     */
+    async authorizeGoogleCalendarAccess(): Promise<void> {
+        if (!this.settings.googleClientId || !this.settings.googleClientSecret) {
+            new Notice("Both Google client ID and client secret are required.");
+            return;
+        }
 
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+        try {
+            const tokens = await this.oauthServer.startOAuthFlow(
+                {
+                    clientId: this.settings.googleClientId,
+                    clientSecret: this.settings.googleClientSecret,
+                },
+                GOOGLE_CALENDAR_SCOPES
+            );
+            if (tokens.access_token && tokens.refresh_token) {
+                this.settings.googleAccessToken = tokens.access_token;
+                this.settings.googleRefreshToken = tokens.refresh_token || "";
+                await this.saveSettings();
+                await this.initGoogleCalendarClient();
+            }
+        } catch (error) {
+            new Notice(`Google Calendar authorization failed: ${String(error)}`);
+            console.error("Error during OAuth flow:", error);
+        }
+    }
 
-	}
+    /**
+     * Revokes plugin access to the user's Google Calendar by deleting stored credentials.
+     */
+    async revokeGoogleCalendarAccess(): Promise<void> {
+        delete this.settings.googleAccessToken;
+        delete this.settings.googleRefreshToken;
+        await this.saveSettings();
+        this.gcalClient?.cleanup();
+        delete this.gcalClient;
+    }
 
-	onunload() {
-	}
+    private async initGoogleCalendarClient(): Promise<void> {
+        if (!this.settings.googleAccessToken || !this.settings.googleRefreshToken) {
+            // Don't build the client until the user has authorized calendar access and we have
+            // access and refresh tokens
+            return;
+        }
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
-	}
+        const credentials: GoogleCalendarCredentials = {
+            clientId: this.settings.googleClientId,
+            clientSecret: this.settings.googleClientSecret,
+            accessToken: this.settings.googleAccessToken,
+            refreshToken: this.settings.googleRefreshToken,
+            callbackUrl: this.oauthServer.callbackUrl,
+        };
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
-}
+        const onTokensUpdated = async (tokens: Credentials) => {
+            if (tokens.access_token) {
+                this.settings.googleAccessToken = tokens.access_token;
+            }
+            if (tokens.refresh_token) {
+                this.settings.googleRefreshToken = tokens.refresh_token;
+            }
+            await this.saveSettings();
+        };
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
+        this.gcalClient = new GoogleCalendarClient(credentials, onTokensUpdated);
+    }
 }
