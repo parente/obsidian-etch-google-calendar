@@ -1,3 +1,8 @@
+/**
+ * Google Calendar API client for fetching calendar events.
+ *
+ * Adapted from https://github.com/lexafaxine/GoogleCalendarImporter
+ */
 import { calendar_v3, calendar } from "@googleapis/calendar";
 import { OAuth2Client, type Credentials } from "google-auth-library";
 import moment from "moment-timezone";
@@ -15,10 +20,6 @@ export interface GoogleCalendarCredentials {
 export const GOOGLE_CALENDAR_SCOPES: string[] = [
 	"https://www.googleapis.com/auth/calendar.readonly",
 ];
-
-export interface CalendarData {
-	events: calendar_v3.Schema$Events | null;
-}
 
 export class GoogleCalendarClient {
 	private auth: OAuth2Client;

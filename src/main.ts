@@ -1,3 +1,6 @@
+/**
+ * Plugin entry point and controller.
+ */
 import { Notice, Plugin } from "obsidian";
 import {
 	DEFAULT_SETTINGS,
@@ -54,12 +57,9 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 		await this.saveData(this.settings);
 	}
 
-	get svelteProps(): object {
-		return {
-			gcalClient: this.gcalClient,
-		};
-	}
-
+	/**
+	 * Starts the flow to authorize plugin access to the user's Google Calendar.
+	 */
 	async authorizeGoogleCalendarAccess(): Promise<void> {
 		if (!this.settings.googleClientId || !this.settings.googleClientSecret) {
 			new Notice("Both Google client ID and client secret are required.");
@@ -81,11 +81,14 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 				await this.initGoogleCalendarClient();
 			}
 		} catch (error) {
-			new Notice(`Authorization failed: ${String(error)}`);
+			new Notice(`Google Calendar authorization failed: ${String(error)}`);
 			console.error("Error during OAuth flow:", error);
 		}
 	}
 
+	/**
+	 * Revokes plugin access to the user's Google Calendar by deleting stored credentials.
+	 */
 	async revokeGoogleCalendarAccess(): Promise<void> {
 		delete this.settings.googleAccessToken;
 		delete this.settings.googleRefreshToken;
@@ -94,7 +97,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 		delete this.gcalClient;
 	}
 
-	async initGoogleCalendarClient(): Promise<void> {
+	private async initGoogleCalendarClient(): Promise<void> {
 		if (!this.settings.googleAccessToken || !this.settings.googleRefreshToken) {
 			// Don't build the client until the user has authorized calendar access and we have
 			// access and refresh tokens

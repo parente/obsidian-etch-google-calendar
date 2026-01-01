@@ -1,3 +1,8 @@
+/**
+ * Code block processor that supports rendering a Svelte component view and etching
+ * content back into the source of the markdown file containing it.
+ */
+
 import {
 	App,
 	MarkdownRenderChild,
@@ -62,10 +67,19 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		}
 	}
 
+	/**
+	 * The source path of the markdown file containing this code block, accounting for renames.
+	 */
 	get sourcePath(): string {
 		return this.currentPath;
 	}
 
+	/**
+	 * Extracts parameters from a code block language identifier.
+	 *
+	 * The parameters are specified as a YAML map immediately following the code block language,
+	 * e.g. ```etch-something{foo: "bar", baz: 42}
+	 */
 	get fenceParams(): { [key: string]: unknown } {
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
 		if (!sectionInfo) return {};
@@ -99,7 +113,20 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 	}
 }
 
-export function createSvelteEtcher(app: App, plugin: Plugin, componentCls: Component) {
+/**
+ * Creates a factory function for instantiating a SvelteEtcher code block processor, suitable as a
+ * handler for Plugin.registerMarkdownCodeBlockProcessor.
+ *
+ * @param app Obsidian application instance
+ * @param plugin Plugin instance
+ * @param componentCls Svelte component class
+ * @returns Factory function
+ */
+export function createSvelteEtcher(
+	app: App,
+	plugin: Plugin,
+	componentCls: Component
+): (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => void {
 	return (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
 		const child = new SvelteEtcher(source, el, ctx, app, plugin, componentCls);
 		ctx.addChild(child);

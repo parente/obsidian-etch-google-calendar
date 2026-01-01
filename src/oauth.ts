@@ -1,3 +1,8 @@
+/**
+ * Local OAuth2 server to handle Google API authorization flow.
+ *
+ * Adapted from https://github.com/lexafaxine/GoogleCalendarImporter
+ */
 import * as http from "http";
 import * as url from "url";
 import { type Credentials, OAuth2Client } from "google-auth-library";
@@ -17,10 +22,20 @@ export class OAuthServer {
 		this.oauthFlowTimeoutSeconds = oauthFlowTimeoutSeconds;
 	}
 
+	/**
+	 * The callback URL for the OAuth2 flow.
+	 */
 	get callbackUrl(): string {
 		return `http://localhost:${this.port}/callback`;
 	}
 
+	/**
+	 * Initiates the OAuth2 flow between the Google API and local user.
+	 *
+	 * @param credentials Client ID and secret
+	 * @param scopes Scopes requested
+	 * @returns Google API credentials including access and refresh token
+	 */
 	async startOAuthFlow(credentials: OAuthCredentials, scopes: string[]): Promise<Credentials> {
 		return new Promise((resolve, reject) => {
 			this.server = this.createServer(credentials, resolve, reject);

@@ -1,3 +1,6 @@
+/**
+ * Plugin settings view and controller.
+ */
 import { App, PluginSettingTab, Setting } from "obsidian";
 import EtchGoogleCalendarPlugin from "./main";
 
