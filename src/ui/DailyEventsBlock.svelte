@@ -109,11 +109,7 @@
 
 <div class="footer">
 	<span class="status">{@html statusContent}</span>
-	<button
-		onclick={handleRefresh}
-		aria-label="Get Google Calendar events and etch them into the note"
-		><PenTool size="12" /></button
-	>
+	<button onclick={handleRefresh} aria-label="Etch"><PenTool size="12" /></button>
 </div>
 
 <style>
