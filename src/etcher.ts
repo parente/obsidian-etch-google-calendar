@@ -91,6 +91,10 @@ export default class SvelteEtcher extends MarkdownRenderChild {
     /**
      * Etches new text content into the markdown file code block / fenced block source.
      *
+     * This method uses Vault.process to edit the content of the underlying Markdown file instead
+     * of relying on an active Editor instead for the note containing the block, somewhat contrary
+     * to the advice at https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines#Prefer+the+Editor+API+instead+of+%60Vault.modify%60+to+the+active+file.
+     *
      * @param newEtching New text to content to etch in to the code block source
      * @returns Promise that resolves when the etching is complete
      */
