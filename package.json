@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-etch-google-calendar",
-  "version": "1.0.1",
-  "description": "Etches daily Google Calendar events into your local notes",
+  "name": "etch-google-calendar",
+  "version": "1.0.2",
+  "description": "Etches daily Google Calendar events into your local notes.",
   "main": "main.js",
   "type": "module",
   "scripts": {
