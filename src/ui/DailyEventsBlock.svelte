@@ -3,6 +3,7 @@
 	import type SvelteEtcher from "etcher";
 	import { calendar_v3 } from "@googleapis/calendar";
 	import { PenTool } from "@lucide/svelte";
+	import { moment } from "obsidian";
 
 	interface Props {
 		/** Currently etched content within the block */
@@ -31,7 +32,7 @@
 			if (item.start?.dateTime) {
 				console.debug(item.start.dateTime);
 				// Use moment to parse and preserve the original timezone
-				const eventTime = window.moment.parseZone(item.start.dateTime);
+				const eventTime = moment.parseZone(item.start.dateTime);
 				const start = eventTime.format("HH:mm");
 				lines.push(`${start.padEnd(15)} ${item.summary}`);
 			} else if (item.start?.date) {
