@@ -19,7 +19,6 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 	gcalClient?: GoogleCalendarClient;
 
 	async onload(): Promise<void> {
-		console.debug("EtchGoogleCalendarPlugin.onload");
 		// Create a local server to handle OAuth flows
 		this.oauthServer = new OAuthServer();
 
@@ -39,7 +38,6 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
 	}
 
 	onunload(): void {
-		console.debug("EtchGoogleCalendarPlugin.onunload");
 		this.oauthServer.cleanup();
 		this.gcalClient?.cleanup();
 		delete this.gcalClient;

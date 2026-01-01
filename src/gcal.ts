@@ -127,7 +127,6 @@ export class GoogleCalendarClient {
 		calendarId?: string;
 		eventTypes?: string[];
 	}): Promise<calendar_v3.Schema$Events> {
-		console.debug("GoogleCalendarClient.getEventsForDate => date:", date);
 		try {
 			const calendarTimeZone = await this.getCalendarTimeZone(calendarId);
 
@@ -135,8 +134,6 @@ export class GoogleCalendarClient {
 			// timezone offset*
 			const timeMin = moment.tz(`${date} 00:00:00.000`, calendarTimeZone).format();
 			const timeMax = moment.tz(`${date} 23:59:59.999`, calendarTimeZone).format();
-			console.debug("GoogleCalendarClient.getEventsForDate => timeMin:", timeMin);
-			console.debug("GoogleCalendarClient.getEventsForDate => timeMax:", timeMax);
 
 			const evtList = await this.calendar.events.list({
 				calendarId: calendarId,

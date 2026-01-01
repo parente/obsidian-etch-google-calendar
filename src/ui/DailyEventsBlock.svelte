@@ -30,7 +30,6 @@
 		const lines: string[] = [];
 		for (const item of resp?.items || []) {
 			if (item.start?.dateTime) {
-				console.debug(item.start.dateTime);
 				// Use moment to parse and preserve the original timezone
 				const eventTime = moment.parseZone(item.start.dateTime);
 				const start = eventTime.format("HH:mm");
@@ -60,7 +59,6 @@
 	 *  for the date specified in the fence parameters or the note name.
 	 */
 	async function handleRefresh() {
-		console.debug("DailyEventsBlock.handleRefresh");
 		if (!plugin.gcalClient) {
 			statusContent = "✋ Connect your Google Calendar in the plugin settings";
 			return;

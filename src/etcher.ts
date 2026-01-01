@@ -40,8 +40,6 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 	}
 
 	onload() {
-		console.debug("SvelteCodeBlock.onload");
-
 		this.registerEvent(
 			this.app.vault.on("rename", (file, oldPath) => {
 				if (oldPath === this.currentPath) {
@@ -61,7 +59,6 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 	}
 
 	onunload() {
-		console.debug("SvelteCodeBlock.onunload");
 		if (this.component) {
 			void unmount(this.component);
 		}
@@ -91,16 +88,20 @@ export default class SvelteEtcher extends MarkdownRenderChild {
 		return parseYaml(match[1]) as { [key: string]: unknown };
 	}
 
+	/**
+	 * Etches new text content into the markdown file code block / fenced block source.
+	 *
+	 * @param newEtching New text to content to etch in to the code block source
+	 * @returns Promise that resolves when the etching is complete
+	 */
 	public async etch(newEtching: string): Promise<void> {
 		const sectionInfo = this.ctx.getSectionInfo(this.containerEl);
-		console.debug("SvelteCodeBlock.etch => sectionInfo:", sectionInfo);
 		if (!sectionInfo) return;
 
 		const file = this.app.vault.getAbstractFileByPath(this.sourcePath);
 		if (!(file instanceof TFile)) return;
 
 		await this.app.vault.process(file, (data: string) => {
-			console.debug("SvelteCodeBlock.etch => processing file:", file.path);
 			const lines = data.split("\n");
 			// Retain everything except the content within the code block fence
 			const newLines = [
