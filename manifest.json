@@ -1,11 +1,11 @@
 {
-	"id": "obsidian-etch-google-calendar",
-	"name": "Etch - Google Calendar",
-	"version": "1.0.1",
-	"minAppVersion": "1.11.0",
-	"description": "Etches daily Google Calendar events into your local Obsidian notes",
-	"author": "Peter Parente",
-	"authorUrl": "https://github.com/parente",
-	"fundingUrl": "https://buymeacoffee.com/parente",
-	"isDesktopOnly": true
+  "id": "etch-google-calendar",
+  "name": "Etch - Google Calendar",
+  "version": "1.0.2",
+  "minAppVersion": "1.11.0",
+  "description": "Etches daily Google Calendar events into your local notes.",
+  "author": "Peter Parente",
+  "authorUrl": "https://github.com/parente",
+  "fundingUrl": "https://buymeacoffee.com/parente",
+  "isDesktopOnly": true
 }
