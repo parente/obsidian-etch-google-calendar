@@ -8,91 +8,91 @@ import * as url from "url";
 import { type Credentials, OAuth2Client } from "google-auth-library";
 
 export interface OAuthCredentials {
-	clientId: string;
-	clientSecret: string;
+    clientId: string;
+    clientSecret: string;
 }
 
 export class OAuthServer {
-	private server?: http.Server;
-	private port: number;
-	private oauthFlowTimeoutSeconds: number;
+    private server?: http.Server;
+    private port: number;
+    private oauthFlowTimeoutSeconds: number;
 
-	constructor(port: number = 8080, oauthFlowTimeoutSeconds: number = 2 * 60 * 1000) {
-		this.port = port;
-		this.oauthFlowTimeoutSeconds = oauthFlowTimeoutSeconds;
-	}
+    constructor(port: number = 8080, oauthFlowTimeoutSeconds: number = 2 * 60 * 1000) {
+        this.port = port;
+        this.oauthFlowTimeoutSeconds = oauthFlowTimeoutSeconds;
+    }
 
-	/**
-	 * The callback URL for the OAuth2 flow.
-	 */
-	get callbackUrl(): string {
-		return `http://localhost:${this.port}/callback`;
-	}
+    /**
+     * The callback URL for the OAuth2 flow.
+     */
+    get callbackUrl(): string {
+        return `http://localhost:${this.port}/callback`;
+    }
 
-	/**
-	 * Initiates the OAuth2 flow between the Google API and local user.
-	 *
-	 * @param credentials Client ID and secret
-	 * @param scopes Scopes requested
-	 * @returns Google API credentials including access and refresh token
-	 */
-	async startOAuthFlow(credentials: OAuthCredentials, scopes: string[]): Promise<Credentials> {
-		return new Promise((resolve, reject) => {
-			this.server = this.createServer(credentials, resolve, reject);
-			this.startServer(credentials, scopes);
-		});
-	}
+    /**
+     * Initiates the OAuth2 flow between the Google API and local user.
+     *
+     * @param credentials Client ID and secret
+     * @param scopes Scopes requested
+     * @returns Google API credentials including access and refresh token
+     */
+    async startOAuthFlow(credentials: OAuthCredentials, scopes: string[]): Promise<Credentials> {
+        return new Promise((resolve, reject) => {
+            this.server = this.createServer(credentials, resolve, reject);
+            this.startServer(credentials, scopes);
+        });
+    }
 
-	private createServer(
-		credentials: OAuthCredentials,
-		resolve: (tokens: Credentials) => void,
-		reject: (reason?: Error) => void
-	): http.Server {
-		setTimeout(() => {
-			this.closeServer();
-			reject(new Error("Authorization timed out"));
-		}, this.oauthFlowTimeoutSeconds);
+    private createServer(
+        credentials: OAuthCredentials,
+        resolve: (tokens: Credentials) => void,
+        reject: (reason?: Error) => void
+    ): http.Server {
+        setTimeout(() => {
+            this.closeServer();
+            reject(new Error("Authorization timed out"));
+        }, this.oauthFlowTimeoutSeconds);
 
-		return http.createServer((req, res) => {
-			if (req.url && url.parse(req.url, true).pathname === "/callback") {
-				this.handleCallback(req, res, credentials, resolve, reject);
-			}
-		});
-	}
+        return http.createServer((req, res) => {
+            if (req.url && url.parse(req.url, true).pathname === "/callback") {
+                this.handleCallback(req, res, credentials, resolve, reject);
+            }
+        });
+    }
 
-	private handleCallback(
-		req: http.IncomingMessage,
-		res: http.ServerResponse,
-		credentials: OAuthCredentials,
-		resolve: (tokens: Credentials) => void,
-		reject: (reason?: Error) => void
-	): void {
-		if (!req.url) return;
-		const reqUrl = url.parse(req.url, true);
-		const code = reqUrl.query.code as string;
-		const error = reqUrl.query.error as string;
+    private handleCallback(
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+        credentials: OAuthCredentials,
+        resolve: (tokens: Credentials) => void,
+        reject: (reason?: Error) => void
+    ): void {
+        if (!req.url) return;
+        const reqUrl = url.parse(req.url, true);
+        const code = reqUrl.query.code as string;
+        const error = reqUrl.query.error as string;
 
-		if (error) {
-			this.sendErrorResponse(res, `Authorization failed: ${error}`);
-			this.closeServer();
-			reject(new Error(error));
-			return;
-		}
+        if (error) {
+            this.sendErrorResponse(res, `Authorization failed: ${error}`);
+            this.closeServer();
+            reject(new Error(error));
+            return;
+        }
 
-		if (code) {
-			this.sendSuccessResponse(res);
-			this.closeServer();
-			this.exchangeCodeForTokens(code, credentials).then(resolve).catch(reject);
-		} else {
-			this.sendErrorResponse(res, "No authorization code received");
-			this.closeServer();
-			reject(new Error("No authorization code received"));
-		}
-	}
+        if (code) {
+            this.sendSuccessResponse(res);
+            this.closeServer();
+            this.exchangeCodeForTokens(code, credentials).then(resolve).catch(reject);
+        } else {
+            this.sendErrorResponse(res, "No authorization code received");
+            this.closeServer();
+            reject(new Error("No authorization code received"));
+        }
+    }
 
-	private sendSuccessResponse(res: http.ServerResponse): void {
-		res.writeHead(200, { "Content-Type": "text/html" });
-		res.end(`
+    private sendSuccessResponse(res: http.ServerResponse): void {
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.end(`
 			<html>
 				<body>
 					<h1>Authorization successful!</h1>
@@ -101,11 +101,11 @@ export class OAuthServer {
 				</body>
 			</html>
 		`);
-	}
+    }
 
-	private sendErrorResponse(res: http.ServerResponse, message: string): void {
-		res.writeHead(400, { "Content-Type": "text/html" });
-		res.end(`
+    private sendErrorResponse(res: http.ServerResponse, message: string): void {
+        res.writeHead(400, { "Content-Type": "text/html" });
+        res.end(`
 			<html>
 				<body>
 					<h1>Authorization failed</h1>
@@ -115,55 +115,55 @@ export class OAuthServer {
 				</body>
 			</html>
 		`);
-	}
+    }
 
-	private startServer(credentials: OAuthCredentials, scopes: string[]): void {
-		this.server?.listen(this.port, () => {
-			const authUrl = this.generateAuthUrl(credentials, scopes);
-			window.open(authUrl, "_blank");
-		});
+    private startServer(credentials: OAuthCredentials, scopes: string[]): void {
+        this.server?.listen(this.port, () => {
+            const authUrl = this.generateAuthUrl(credentials, scopes);
+            window.open(authUrl, "_blank");
+        });
 
-		this.server?.on("error", (err) => {
-			this.closeServer();
-			throw err;
-		});
-	}
+        this.server?.on("error", (err) => {
+            this.closeServer();
+            throw err;
+        });
+    }
 
-	private createOAuth2Client(credentials: OAuthCredentials) {
-		return new OAuth2Client({
-			clientId: credentials.clientId,
-			clientSecret: credentials.clientSecret,
-			redirectUri: this.callbackUrl,
-		});
-	}
+    private createOAuth2Client(credentials: OAuthCredentials) {
+        return new OAuth2Client({
+            clientId: credentials.clientId,
+            clientSecret: credentials.clientSecret,
+            redirectUri: this.callbackUrl,
+        });
+    }
 
-	private generateAuthUrl(credentials: OAuthCredentials, scopes: string[]): string {
-		const auth = this.createOAuth2Client(credentials);
+    private generateAuthUrl(credentials: OAuthCredentials, scopes: string[]): string {
+        const auth = this.createOAuth2Client(credentials);
 
-		return auth.generateAuthUrl({
-			access_type: "offline",
-			scope: scopes,
-			prompt: "consent",
-		});
-	}
+        return auth.generateAuthUrl({
+            access_type: "offline",
+            scope: scopes,
+            prompt: "consent",
+        });
+    }
 
-	private async exchangeCodeForTokens(
-		code: string,
-		credentials: OAuthCredentials
-	): Promise<Credentials> {
-		const auth = this.createOAuth2Client(credentials);
-		const { tokens } = await auth.getToken(code);
-		return tokens;
-	}
+    private async exchangeCodeForTokens(
+        code: string,
+        credentials: OAuthCredentials
+    ): Promise<Credentials> {
+        const auth = this.createOAuth2Client(credentials);
+        const { tokens } = await auth.getToken(code);
+        return tokens;
+    }
 
-	private closeServer(): void {
-		if (this.server) {
-			this.server.close();
-			delete this.server;
-		}
-	}
+    private closeServer(): void {
+        if (this.server) {
+            this.server.close();
+            delete this.server;
+        }
+    }
 
-	cleanup(): void {
-		this.closeServer();
-	}
+    cleanup(): void {
+        this.closeServer();
+    }
 }
