@@ -28,7 +28,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
         this.addSettingTab(new EtchGoogleCalendarPluginSettingTab(this.app, this));
 
         // Try to initialize the calendar client with saved credentials
-        await this.initGoogleCalendarClient();
+        this.initGoogleCalendarClient();
 
         // Register a Svelte code block processor to render and etch Google Calendar data
         this.registerMarkdownCodeBlockProcessor(
@@ -76,7 +76,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
                 this.settings.googleAccessToken = tokens.access_token;
                 this.settings.googleRefreshToken = tokens.refresh_token || "";
                 await this.saveSettings();
-                await this.initGoogleCalendarClient();
+                this.initGoogleCalendarClient();
             }
         } catch (error) {
             new Notice(`Google Calendar authorization failed: ${String(error)}`);
@@ -95,7 +95,7 @@ export default class EtchGoogleCalendarPlugin extends Plugin {
         delete this.gcalClient;
     }
 
-    private async initGoogleCalendarClient(): Promise<void> {
+    private initGoogleCalendarClient(): void {
         if (!this.settings.googleAccessToken || !this.settings.googleRefreshToken) {
             // Don't build the client until the user has authorized calendar access and we have
             // access and refresh tokens
