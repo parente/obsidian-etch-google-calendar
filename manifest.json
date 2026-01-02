@@ -1,7 +1,7 @@
 {
   "id": "etch-google-calendar",
   "name": "Etch - Google Calendar",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "1.11.0",
   "description": "Etches daily Google Calendar events into your local notes.",
   "author": "Peter Parente",

@@ -1,6 +1,6 @@
 {
   "name": "etch-google-calendar",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Etches daily Google Calendar events into your local notes.",
   "main": "main.js",
   "type": "module",
