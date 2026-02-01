@@ -76,7 +76,7 @@
             // Fetch latest calendar events
             const resp = await plugin.gcalClient.getEventsForDate({
                 date,
-                eventTypes: ["default", "focusTime"],
+                eventTypes: ["default", "focusTime", "outOfOffice"],
             });
             // Convert to plain text
             const newSource = eventsToLines(resp);
